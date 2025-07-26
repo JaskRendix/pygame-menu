@@ -105,6 +105,34 @@ class SurfaceWidget(Widget):
                 break
         return False
 
+    def fit_to_menu(self) -> 'SurfaceWidget':
+        """
+        Resize surface to fit the menu's inner area, maintaining aspect ratio.
+    
+        :return: Self reference
+        """
+        menu = self.get_menu()
+        if menu is None:
+            return self  # Fail-safe: widget not yet attached to a menu
+    
+        max_width, max_height = menu.get_size(inner=True)
+        surf_w, surf_h = self._surface_obj.get_size()
+        aspect_ratio = surf_w / surf_h
+    
+        if max_width / max_height < aspect_ratio:
+            # Fit to width
+            new_w = max_width
+            new_h = int(max_width / aspect_ratio)
+        else:
+            # Fit to height
+            new_h = max_height
+            new_w = int(max_height * aspect_ratio)
+    
+        self._surface_obj = pygame.transform.smoothscale(self._surface_obj, (new_w, new_h))
+        self._render()
+        self.force_menu_surface_update()
+        return self
+
 
 class SurfaceWidgetManager(AbstractWidgetManager, ABC):
     """
