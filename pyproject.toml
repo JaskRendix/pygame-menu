@@ -1,0 +1,69 @@
+[project]
+name = "pygame-menu"
+version = "4.5.4"
+description = "A menu for pygame. Simple, and easy to use"
+readme = "README.rst"
+requires-python = ">=3.8,<4"
+license = "MIT"
+
+authors = [
+    {name = "Pablo Pizarro R.", email = "pablo@ppizarror.com"}
+]
+
+keywords = [
+    "pygame", "menu", "menus", "gui", "widget", "input", "button",
+    "pygame-menu", "image", "sound", "ui"
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
+    "Topic :: Multimedia",
+    "Topic :: Software Development :: Libraries :: pygame",
+    "Topic :: Text Processing"
+]
+
+dependencies = [
+    "pygame>=1.9.3",
+    "pyperclip",
+    "typing_extensions"
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx<7",
+    "sphinx-autodoc-typehints>=1.2.0",
+    "sphinx-rtd-theme"
+]
+test = [
+    "nose2[coverage_plugin]",
+    "pytest"
+]
+
+[project.urls]
+Homepage = "https://pygame-menu.readthedocs.io"
+Documentation = "https://pygame-menu.readthedocs.io"
+Source_Code = "https://github.com/ppizarror/pygame-menu"
+Bug_Tracker = "https://github.com/ppizarror/pygame-menu/issues"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pygame_menu"]
+
+[tool.setuptools.package-data]
+"pygame_menu" = ["*"]
+
+[project.entry-points."pyinstaller40"]
+hook-dirs = "pygame_menu.__pyinstaller:get_hook_dirs"
