@@ -183,6 +183,42 @@ class BaseImage(Base):
     ) -> None:
         super().__init__(object_id=image_id)
 
+        # Delegate image loading and source parsing
+        self._load_source(image_path, load_from_file, frombase64)
+
+        # Drawing configuration
+        self._drawing_mode = 0
+        self._drawing_offset = (0, 0)
+        self._drawing_position = ""
+
+        self.set_drawing_mode(drawing_mode)
+        self.set_drawing_offset(drawing_offset)
+        self.set_drawing_position(drawing_position)
+
+        # Internal state
+        self._angle = 0
+        self._last_transform = (0, 0, None)  # Cache for draw()
+        self._rotated = False
+        self.smooth_scaling = True  # Default scaling mode
+
+    def _load_source(
+        self,
+        image_path: str | Path | BytesIO | pygame.Surface,
+        load_from_file: bool,
+        frombase64: bool,
+    ) -> None:
+        """
+        Load and initialize the image source from a file path, BytesIO stream,
+        base64 string, or an existing pygame.Surface.
+
+        This method validates the source format, handles format-specific decoding,
+        and populates the internal surface and metadata attributes.
+
+        :param image_path: Path of the image to be loaded (str, Path, BytesIO, or pygame.Surface).
+        :param load_from_file: Whether to load the image from the target path.
+        :param frombase64: Whether ``image_path`` is a base64-encoded string.
+        :return: ``None``
+        """
         assert isinstance(load_from_file, bool)
         assert isinstance(frombase64, bool)
 
@@ -203,74 +239,59 @@ class BaseImage(Base):
             self._surface = surf
             self._original_surface = surf.copy()
             self._load_from_file = False
+            return
 
         # Handle path / BytesIO / base64 inputs
-        else:
-            assert isinstance(image_path, (str, Path, BytesIO)), (
-                "path must be string, Path, BytesIO, or pygame.Surface"
-            )
+        assert isinstance(image_path, (str, Path, BytesIO)), (
+            "path must be string, Path, BytesIO, or pygame.Surface"
+        )
 
-            original_path = image_path
+        original_path = image_path
 
-            # Determine extension
-            if isinstance(image_path, (str, Path)):
-                image_path = Path(image_path)
-                if not frombase64:
-                    ext = image_path.suffix.lower()
-                    assert image_path.is_file(), (
-                        f"file {image_path} does not exist or could not be found"
-                    )
-                else:
-                    ext = "base64"
-            else:
-                ext = "BytesIO"
-
-            # Validate extension
-            assert ext in _VALID_IMAGE_FORMATS, (
-                f"file extension {ext} not valid, please use: {', '.join(_VALID_IMAGE_FORMATS)}"
-            )
-
-            # Store source info
-            if isinstance(original_path, BytesIO):
-                self._set_source_info(original_path, ext, frombase64)
-            else:
-                self._set_source_info(str(original_path), ext, frombase64)
-
-            # Extract filename (only for real filesystem paths)
-            if isinstance(original_path, (str, Path)) and not frombase64:
-                p = Path(original_path)
-                self._filename = p.stem
-            else:
-                self._filename = ""
-
-            # Decode base64 → BytesIO
-            if frombase64 and isinstance(original_path, str):
-                data = original_path.split("base64,", 1)[-1]
-                image_path = BytesIO(base64.b64decode(data))
-
-            # Load from file if requested
-            if self._load_from_file:
-                # pygame requires a string path
-                load_target = (
-                    str(image_path) if isinstance(image_path, Path) else image_path
+        # Determine extension
+        if isinstance(image_path, (str, Path)):
+            image_path = Path(image_path)
+            if not frombase64:
+                ext = image_path.suffix.lower()
+                assert image_path.is_file(), (
+                    f"file {image_path} does not exist or could not be found"
                 )
-                self._surface = load_pygame_image_file(load_target)
-                self._original_surface = self._surface.copy()
+            else:
+                ext = "base64"
+        else:
+            ext = "BytesIO"
 
-        # Drawing configuration
-        self._drawing_mode = 0
-        self._drawing_offset = (0, 0)
-        self._drawing_position = ""
+        # Validate extension
+        assert ext in _VALID_IMAGE_FORMATS, (
+            f"file extension {ext} not valid, please use: {', '.join(_VALID_IMAGE_FORMATS)}"
+        )
 
-        self.set_drawing_mode(drawing_mode)
-        self.set_drawing_offset(drawing_offset)
-        self.set_drawing_position(drawing_position)
+        # Store source info
+        if isinstance(original_path, BytesIO):
+            self._set_source_info(original_path, ext, frombase64)
+        else:
+            self._set_source_info(str(original_path), ext, frombase64)
 
-        # Internal state
-        self._angle = 0
-        self._last_transform = (0, 0, None)  # Cache for draw()
-        self._rotated = False
-        self.smooth_scaling = True  # Default scaling mode
+        # Extract filename (only for real filesystem paths)
+        if isinstance(original_path, (str, Path)) and not frombase64:
+            p = Path(original_path)
+            self._filename = p.stem
+        else:
+            self._filename = ""
+
+        # Decode base64 → BytesIO
+        if frombase64 and isinstance(original_path, str):
+            data = original_path.split("base64,", 1)[-1]
+            image_path = BytesIO(base64.b64decode(data))
+
+        # Load from file if requested
+        if self._load_from_file:
+            # pygame requires a string path
+            load_target = (
+                str(image_path) if isinstance(image_path, Path) else image_path
+            )
+            self._surface = load_pygame_image_file(load_target)
+            self._original_surface = self._surface.copy()
 
     def __copy__(self) -> BaseImage:
         """
