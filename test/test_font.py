@@ -201,3 +201,67 @@ def test_font_argument_direct_instance_in_menu():
     # Test widgets with default font, check are equal
     text2 = menu.add.text_input("First name: ", default="John")
     assert text2.get_font_info()["name"] == menu.get_theme().widget_font
+
+
+def test_font_auto_initialization():
+    """Test that get_font auto-initializes pygame.font subsystem."""
+    pygame.font.quit()
+    assert not pygame.font.get_init()
+    pygame_menu.font.get_font(pygame_menu.font.FONT_8BIT, 12)
+    assert pygame.font.get_init()
+
+
+def test_system_font_error_examples_deterministic():
+    """Test invalid system font error contains deterministic examples."""
+    with pytest.raises(ValueError) as exc:
+        pygame_menu.font.get_font("not_a_real_font_name_xyz", 12)
+    msg = str(exc.value)
+    lines = msg.splitlines()
+    assert "some examples:" in msg
+    # Ensure examples are deterministic: sorted list slice
+    examples = lines[-1].split("some examples:")[1].strip().split(", ")
+    assert examples == sorted(examples)
+
+
+def test_clear_font_cache():
+    """Test that clear_font_cache empties the internal font cache."""
+    pygame_menu.font.get_font(pygame_menu.font.FONT_8BIT, 12)
+    assert len(pygame_menu.font._cache) > 0
+    pygame_menu.font.clear_font_cache()
+    assert len(pygame_menu.font._cache) == 0
+
+
+def test_directory_path_rejected():
+    """Test get_font rejects directory paths."""
+    d = Path(pygame_menu.font.FONT_8BIT).parent
+    with pytest.raises(ValueError):
+        pygame_menu.font.get_font(d, 12)
+
+
+def test_system_font_name_stripping():
+    """Test system font names with whitespace are normalized."""
+    sys_font = MenuUtils.random_system_font()
+    spaced = f"  {sys_font}  "
+    f1 = pygame_menu.font.get_font(sys_font, 14)
+    f2 = pygame_menu.font.get_font(spaced, 14)
+    assert f1 is f2
+
+
+def test_path_with_whitespace_normalization(tmp_path):
+    """Test font loading with whitespace in Path string conversion."""
+    src = Path(pygame_menu.font.FONT_8BIT)
+    dst = tmp_path / "font.ttf"
+    dst.write_bytes(src.read_bytes())
+    p = Path(f"  {dst}  ")
+    assert pygame_menu.font.get_font(p, 12) is not None
+
+
+def test_load_font_file_cache_key_normalization(tmp_path):
+    """Test load_font_file cache key normalization for equivalent paths."""
+    src = Path(pygame_menu.font.FONT_8BIT)
+    dst = tmp_path / "font.ttf"
+    dst.write_bytes(src.read_bytes())
+
+    f1 = pygame_menu.font.load_font_file(dst.resolve(), 12)
+    f2 = pygame_menu.font.load_font_file(dst, 12)
+    assert f1 is f2
