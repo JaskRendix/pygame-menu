@@ -33,38 +33,38 @@ __all__ = [
     "FontInstance",
     # Utils
     "assert_font",
+    "clear_font_cache",
     "get_font",
     "load_font_file",
     "load_system_font",
 ]
 
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Union
 
 import pygame.font as __font
 
-# Available fonts path
-__fonts_path__ = (
-    Path(__file__).resolve().parent / "resources" / "fonts" / "{0}"
-).as_posix()
+# Path resolution for built-in font resources
+_FONTS_DIR: Path = Path(__file__).resolve().parent / "resources" / "fonts"
 
-FONT_8BIT = __fonts_path__.format("8bit.ttf")
-FONT_BEBAS = __fonts_path__.format("bebas.ttf")
-FONT_COMIC_NEUE = __fonts_path__.format("comic_neue.ttf")
-FONT_DIGITAL = __fonts_path__.format("digital.ttf")
-FONT_FIRACODE = __fonts_path__.format("FiraCode-Regular.ttf")
-FONT_FIRACODE_BOLD = __fonts_path__.format("FiraCode-Bold.ttf")
-FONT_FIRACODE_BOLD_ITALIC = __fonts_path__.format("FiraMono-BoldItalic.ttf")
-FONT_FIRACODE_ITALIC = __fonts_path__.format("FiraMono-Italic.ttf")
-FONT_FRANCHISE = __fonts_path__.format("franchise.ttf")
-FONT_HELVETICA = __fonts_path__.format("helvetica.ttf")
-FONT_MUNRO = __fonts_path__.format("munro.ttf")
-FONT_NEVIS = __fonts_path__.format("nevis.ttf")
-FONT_OPEN_SANS = __fonts_path__.format("opensans_regular.ttf")
-FONT_OPEN_SANS_BOLD = __fonts_path__.format("opensans_bold.ttf")
-FONT_OPEN_SANS_ITALIC = __fonts_path__.format("opensans_italic.ttf")
-FONT_OPEN_SANS_LIGHT = __fonts_path__.format("opensans_light.ttf")
-FONT_PT_SERIF = __fonts_path__.format("ptserif_regular.ttf")
+FONT_8BIT = (_FONTS_DIR / "8bit.ttf").as_posix()
+FONT_BEBAS = (_FONTS_DIR / "bebas.ttf").as_posix()
+FONT_COMIC_NEUE = (_FONTS_DIR / "comic_neue.ttf").as_posix()
+FONT_DIGITAL = (_FONTS_DIR / "digital.ttf").as_posix()
+FONT_FIRACODE = (_FONTS_DIR / "FiraCode-Regular.ttf").as_posix()
+FONT_FIRACODE_BOLD = (_FONTS_DIR / "FiraCode-Bold.ttf").as_posix()
+FONT_FIRACODE_BOLD_ITALIC = (_FONTS_DIR / "FiraMono-BoldItalic.ttf").as_posix()
+FONT_FIRACODE_ITALIC = (_FONTS_DIR / "FiraMono-Italic.ttf").as_posix()
+FONT_FRANCHISE = (_FONTS_DIR / "franchise.ttf").as_posix()
+FONT_HELVETICA = (_FONTS_DIR / "helvetica.ttf").as_posix()
+FONT_MUNRO = (_FONTS_DIR / "munro.ttf").as_posix()
+FONT_NEVIS = (_FONTS_DIR / "nevis.ttf").as_posix()
+FONT_OPEN_SANS = (_FONTS_DIR / "opensans_regular.ttf").as_posix()
+FONT_OPEN_SANS_BOLD = (_FONTS_DIR / "opensans_bold.ttf").as_posix()
+FONT_OPEN_SANS_ITALIC = (_FONTS_DIR / "opensans_italic.ttf").as_posix()
+FONT_OPEN_SANS_LIGHT = (_FONTS_DIR / "opensans_light.ttf").as_posix()
+FONT_PT_SERIF = (_FONTS_DIR / "ptserif_regular.ttf").as_posix()
 
 FONT_EXAMPLES = (
     FONT_8BIT,
@@ -89,23 +89,36 @@ FONT_EXAMPLES = (
 FontType = Union[str, __font.Font, Path]
 FontInstance = (str, __font.Font, Path)
 
-# Stores font cache
-_cache: dict[tuple[FontType, int], __font.Font] = {}
+# Internal Font Cache
+_cache: dict[tuple[str, int], __font.Font] = {}
+
+
+def _ensure_font_initialized() -> None:
+    """Ensure pygame.font subsystem is initialized prior to loading fonts."""
+    if not __font.get_init():
+        __font.init()
+
+
+def clear_font_cache() -> None:
+    """Clear cached font instances to release memory."""
+    _cache.clear()
 
 
 def assert_font(font: Any) -> None:
     """
-    Asserts if the given object is a font type.
+    Asserts if the given object is a valid font representation.
 
-    :param font: Font object
+    :param font: Font object or string path
     """
     if not isinstance(font, FontInstance):
-        raise AssertionError("value must be a font type (str, Path, pygame.Font)")
+        raise AssertionError(
+            "value must be a valid font type (str, Path, or pygame.font.Font)"
+        )
 
 
 def get_font(name: FontType, size: int) -> __font.Font:
     """
-    Return a :py:class:`pygame.font.Font` object from a name or file.
+    Smart loader for font objects. Accepts paths, system font names, or Font instances.
 
     This is the backward-compatible smart loader. It delegates to:
     - load_font_file() for explicit file paths
@@ -113,18 +126,20 @@ def get_font(name: FontType, size: int) -> __font.Font:
     - returns pygame.Font instances unchanged
     """
     assert_font(name)
-    assert isinstance(size, int)
+    if not isinstance(size, int):
+        raise TypeError("font size must be an integer")
+
+    if size <= 0:
+        raise ValueError("font size cannot be lower or equal than zero")
 
     # Case 1: direct pygame.Font instance
     if isinstance(name, __font.Font):
         return name
 
     # Normalize
-    name_str = str(name)
+    name_str = str(name).strip()
     if not name_str:
         raise ValueError("font name cannot be empty")
-    if size <= 0:
-        raise ValueError("font size cannot be lower or equal than zero")
 
     # Case 2: explicit file path
     font_path = Path(name_str)
@@ -137,9 +152,9 @@ def get_font(name: FontType, size: int) -> __font.Font:
 
 def load_font_file(path: str | Path, size: int) -> __font.Font:
     """
-    Explicitly load a font from a file path.
+    Explicitly load a font from a valid file path (.ttf, .otf).
 
-    :param path: Path to a .ttf/.otf font file
+    :param path: Path to font file
     :param size: Font size in px
     :return: pygame.font.Font instance
     """
@@ -150,16 +165,19 @@ def load_font_file(path: str | Path, size: int) -> __font.Font:
     if not font_path.is_file():
         raise OSError(f'font file "{font_path}" does not exist')
 
-    key = (font_path.as_posix(), size)
-    if key in _cache:
-        return _cache[key]
+    _ensure_font_initialized()
+
+    resolved_path = font_path.resolve().as_posix()
+    cache_key = (resolved_path, size)
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     try:
-        font = __font.Font(font_path.as_posix(), size)
-    except OSError:
-        raise OSError(f'font file "{font_path}" cannot be loaded')
+        font = __font.Font(resolved_path, size)
+    except OSError as err:
+        raise OSError(f'font file "{font_path}" cannot be loaded') from err
 
-    _cache[key] = font
+    _cache[cache_key] = font
     return font
 
 
@@ -174,43 +192,47 @@ def load_system_font(name: str, size: int) -> __font.Font:
     if not isinstance(name, str):
         raise TypeError("system font name must be a string")
 
-    if not name:
+    clean_name = name.strip()
+    if not clean_name:
         raise ValueError("system font name cannot be empty")
 
     if size <= 0:
         raise ValueError("font size cannot be lower or equal than zero")
 
-    matched = __font.match_font(name)
+    _ensure_font_initialized()
+
+    matched = __font.match_font(clean_name)
     if matched is None:
-        from difflib import SequenceMatcher
-        from random import randrange
-
         system_fonts = __font.get_fonts()
+        if not system_fonts:
+            raise ValueError(
+                f'system font "{clean_name}" unknown; no system fonts available'
+            )
 
-        # Find the closest match
-        best = max(system_fonts, key=lambda f: SequenceMatcher(None, f, name).ratio())
-        suggestion = f'system font "{name}" unknown, use "{best}" instead'
-
-        # Random examples
-        examples = sorted(
-            {system_fonts[randrange(len(system_fonts))] for _ in range(3)}
+        # Deterministic closest match
+        best = max(
+            system_fonts, key=lambda f: SequenceMatcher(None, f, clean_name).ratio()
         )
+
+        # Deterministic sample examples for error guidance
+        examples = sorted(system_fonts)[:3]
         examples_str = ", ".join(examples)
 
         raise ValueError(
-            f"{suggestion}\n"
+            f'system font "{clean_name}" unknown, use "{best}" instead\n'
             f"check system fonts with pygame.font.get_fonts() function\n"
             f"some examples: {examples_str}"
         )
 
-    key = (matched, size)
-    if key in _cache:
-        return _cache[key]
+    resolved_matched = Path(matched).resolve().as_posix()
+    cache_key = (resolved_matched, size)
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     try:
-        font = __font.Font(matched, size)
-    except OSError:
-        raise OSError(f'system font file "{matched}" cannot be loaded')
+        font = __font.Font(resolved_matched, size)
+    except OSError as err:
+        raise OSError(f'system font file "{matched}" cannot be loaded') from err
 
-    _cache[key] = font
+    _cache[cache_key] = font
     return font
