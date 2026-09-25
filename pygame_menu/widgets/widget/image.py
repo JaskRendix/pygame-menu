@@ -119,6 +119,17 @@ class Image(Widget):
         self._render()
         return self
 
+    def _invalidate(self, render: bool = True) -> Image:
+        """
+        Invalidates the current surface and updates rect dimensions
+        immediately to prevent stale layout bounds.
+        """
+        self._surface = None
+        self._rect.size = self._image.get_size()
+        if render:
+            return self._update_surface()
+        return self
+
     def scale(
         self,
         width: NumberType,
@@ -127,7 +138,7 @@ class Image(Widget):
         render: bool = True,
     ) -> Image:
         self._image.scale(width, height, smooth)
-        return self._update_surface()
+        return self._invalidate(render)
 
     def resize(
         self,
@@ -137,13 +148,12 @@ class Image(Widget):
         render: bool = True,
     ) -> Image:
         self._image.resize(width, height, smooth)
-        self._surface = None
-        return self._update_surface()
+        return self._invalidate(render)
 
     def set_max_width(
         self,
         width: NumberType | None,
-        scale_height: NumberType = False,
+        scale_height: bool = False,
         smooth: bool = True,
         render: bool = True,
     ) -> Image:
@@ -153,13 +163,13 @@ class Image(Widget):
             if scale_height:
                 height *= sx
             self._image.resize(width, height, smooth)
-            return self._update_surface()
+            return self._invalidate(render)
         return self
 
     def set_max_height(
         self,
         height: NumberType | None,
-        scale_width: NumberType = False,
+        scale_width: bool = False,
         smooth: bool = True,
         render: bool = True,
     ) -> Image:
@@ -169,12 +179,12 @@ class Image(Widget):
             if scale_width:
                 width *= sy
             self._image.resize(width, height, smooth)
-            return self._update_surface()
+            return self._invalidate(render)
         return self
 
     def rotate(self, angle: NumberType, render: bool = True) -> Image:
         self._image.rotate(angle)
-        return self._update_surface()
+        return self._invalidate(render)
 
     def flip(self, x: bool, y: bool, render: bool = True) -> Image:
         assert isinstance(x, bool)
@@ -182,10 +192,12 @@ class Image(Widget):
         self._flip = (x, y)
         if x or y:
             self._image.flip(x, y)
-            return self._update_surface()
+            return self._invalidate(render)
         return self
 
     def _draw(self, surface: pygame.Surface) -> None:
+        if self._surface is None:
+            self._render()
         surface.blit(self._surface, self._rect.topleft)
 
     def _render(self) -> bool | None:
@@ -213,7 +225,7 @@ class ImageManager(AbstractWidgetManager, ABC):
 
     def image(
         self,
-        image_path: str | Path | pygame_menu.BaseImage | BytesIO | pygame.Surface,
+        image_path: str | Path | BaseImage | BytesIO | pygame.Surface,
         angle: NumberType = 0,
         image_id: str = "",
         onselect: Callable[[bool, Widget, pygame_menu.Menu], Any] | None = None,
@@ -280,24 +292,24 @@ class ImageManager(AbstractWidgetManager, ABC):
         # Remove invalid keys from kwargs
         for key in list(kwargs.keys()):
             if key not in (
-                    "align",
-                    "background_color",
-                    "background_inflate",
-                    "border_color",
-                    "border_inflate",
-                    "border_width",
-                    "cursor",
-                    "margin",
-                    "padding",
-                    "selection_color",
-                    "selection_effect",
-                    "border_position",
-                    "float",
-                    "float_origin_position",
-                    "shadow_color",
-                    "shadow_radius",
-                    "shadow_type",
-                    "shadow_width",
+                "align",
+                "background_color",
+                "background_inflate",
+                "border_color",
+                "border_inflate",
+                "border_width",
+                "cursor",
+                "margin",
+                "padding",
+                "selection_color",
+                "selection_effect",
+                "border_position",
+                "float",
+                "float_origin_position",
+                "shadow_color",
+                "shadow_radius",
+                "shadow_type",
+                "shadow_width",
             ):
                 kwargs.pop(key, None)
 
