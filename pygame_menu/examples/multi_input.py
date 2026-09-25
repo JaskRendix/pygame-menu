@@ -210,9 +210,9 @@ def main(test: bool = False) -> None:
         value_format=lambda x: range_values_discrete[x],
     )
 
-    # Add a progress bar
+    # Add a horizontal progress bar
     progress = settings_menu.add.progress_bar(
-        "Progress", default=rslider.get_value(), progressbar_id="progress"
+        "Progress (H)", default=rslider.get_value(), progressbar_id="progress"
     )
 
     def on_change_slider(val: int) -> None:
@@ -224,6 +224,22 @@ def main(test: bool = False) -> None:
         progress.set_value(val)
 
     rslider.set_onchange(on_change_slider)
+
+    # Add a vertical progress bar showcase
+    from pygame_menu.widgets.widget.progressbar import ORIENTATION_VERTICAL
+
+    settings_menu.add.progress_bar(
+        "Vertical Meter",
+        default=45,
+        min_value=0,
+        max_value=100,
+        width=100,
+        height=30,
+        orientation=ORIENTATION_VERTICAL,
+        progressbar_id="progress_vertical",
+        progress_text_format=lambda x: f"{int(x)}%",
+        box_progress_color=(200, 50, 50),
+    )
 
     # Add a block
     settings_menu.add.clock(clock_format="%Y/%m/%d %H:%M", title_format="Clock: {0}")
