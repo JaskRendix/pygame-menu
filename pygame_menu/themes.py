@@ -40,6 +40,7 @@ from pygame_menu._types import (
     Tuple3IntType,
     VectorInstance,
 )
+from pygame_menu.accessibility import audit_theme
 from pygame_menu.baseimage import BaseImage
 from pygame_menu.font import FONT_OPEN_SANS, FontType, assert_font
 from pygame_menu.locals import (
@@ -994,6 +995,15 @@ class Theme:
             int(float(opacity) * 255),
         )
         return self
+
+    def audit_accessibility(self, level: str = "AA"):
+        """
+        Audit the theme accessibility and return a WCAG compliance report.
+
+        :param level: WCAG conformance level (``AA`` or ``AAA``)
+        :return: Accessibility report
+        """
+        return audit_theme(self, level)
 
     @staticmethod
     def _vec_to_tuple(

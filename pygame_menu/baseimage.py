@@ -901,6 +901,50 @@ class BaseImage(Base):
         """
         return self._angle
 
+    def get_representative_color(self, sample_step: int = 8) -> Tuple3IntType:
+        """
+        Return a representative RGB color for the image.
+
+        This color can be used by theme previews, accessibility
+        auditing, statistics and other image analysis tools.
+
+        The image is sampled every ``sample_step`` pixels to
+        improve performance on large images.
+
+        :param sample_step: Pixel sampling interval
+        :return: Representative RGB color
+        """
+        assert isinstance(sample_step, int)
+        assert sample_step > 0, "sample_step must be greater than zero"
+
+        width, height = self.get_size()
+
+        if width == 0 or height == 0:
+            return 0, 0, 0
+
+        r_total = 0
+        g_total = 0
+        b_total = 0
+        pixels = 0
+
+        for x in range(0, width, sample_step):
+            for y in range(0, height, sample_step):
+                r, g, b = self.get_at((x, y), ignore_alpha=True)
+
+                r_total += r
+                g_total += g
+                b_total += b
+                pixels += 1
+
+        if pixels == 0:
+            return 0, 0, 0
+
+        return (
+            int(round(r_total / pixels)),
+            int(round(g_total / pixels)),
+            int(round(b_total / pixels)),
+        )
+
     def _get_position_delta(self) -> Tuple2IntType:
         """
         Return the delta from drawing position.
